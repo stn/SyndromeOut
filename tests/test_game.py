@@ -1,7 +1,9 @@
 """Board state machine: toggles, undo/redo, judgement gating and classes."""
 
+import pytest
+
 from syndrome_out import LogicalEffect, Pauli
-from syndrome_out.game import Board
+from syndrome_out.game import DISTANCES, ERROR_RATES, Board, pack_seed, unpack_seed
 
 
 def test_toggle_updates_lit_faces() -> None:
@@ -81,6 +83,7 @@ def test_reset_keeps_seed_and_error() -> None:
 
 def test_demo_seed_minimum_weight_fails() -> None:
     """The seed documented in README: MWPM clears the board but flips the logical qubit."""
+    assert unpack_seed(0x500032) == (5, 0.10, 50)
     b = Board.new(5, 0.10, seed=50)
     for q in range(b.code.n):
         k = b.bot_correction.kind(q)
@@ -90,3 +93,23 @@ def test_demo_seed_minimum_weight_fails() -> None:
     assert v is not None and b.all_clear
     assert v.effect is LogicalEffect.X
     assert v.weight == 4 and b.error.weight == 3
+
+
+def test_seed_code_round_trip() -> None:
+    for d in DISTANCES:
+        for p in ERROR_RATES:
+            for raw in (0, 1, 0xABCDE, (1 << 20) - 1):
+                code = pack_seed(d, p, raw)
+                assert 0 <= code < 1 << 24
+                assert unpack_seed(code) == (d, p, raw)
+    # The leading hex digit is d_index * 4 + p_index.
+    assert f"{pack_seed(7, 0.15, 0):06X}" == "A00000"
+
+
+def test_seed_code_rejects_impossible_values() -> None:
+    with pytest.raises(ValueError):
+        unpack_seed(0x300000)  # p index 3 has no error rate
+    with pytest.raises(ValueError):
+        unpack_seed(1 << 24)
+    with pytest.raises(ValueError):
+        pack_seed(3, 0.05, 1 << 20)

@@ -18,6 +18,28 @@ Toggle = Literal["X", "Z", "Y"]
 DISTANCES = (3, 5, 7, 9)
 ERROR_RATES = (0.05, 0.10, 0.15)
 
+# A game is reproduced from one 24-bit code, shown in hex: d index (2 bits), p index (2 bits),
+# then the raw RNG seed (20 bits). The leading hex digit therefore reads as d_index * 4 + p_index.
+RAW_BITS = 20
+_RAW_MASK = (1 << RAW_BITS) - 1
+
+
+def pack_seed(d: int, p: float, seed: int) -> int:
+    if not 0 <= seed <= _RAW_MASK:
+        raise ValueError(f"raw seed must fit in {RAW_BITS} bits")
+    return (DISTANCES.index(d) << (RAW_BITS + 2)) | (ERROR_RATES.index(p) << RAW_BITS) | seed
+
+
+def unpack_seed(code: int) -> tuple[int, float, int]:
+    """Inverse of pack_seed: (d, p, raw seed). Raises ValueError on codes no game produces."""
+    if not 0 <= code < 1 << (RAW_BITS + 4):
+        raise ValueError("seed code must be 6 hex digits")
+    p_index = (code >> RAW_BITS) & 3
+    if p_index >= len(ERROR_RATES):
+        raise ValueError("seed code has no error rate for its p index")
+    d_index = code >> (RAW_BITS + 2)
+    return DISTANCES[d_index], ERROR_RATES[p_index], code & _RAW_MASK
+
 
 @dataclass(frozen=True, slots=True)
 class Verdict:

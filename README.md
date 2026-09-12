@@ -7,7 +7,8 @@ logical error. See `syndrome-out-spec.md` for the design document.
 ```
 uv sync
 uv run syndrome-out            # play (d=5, p=0.10 by default)
-uv run syndrome-out -d 7 -p 0.05 --seed 42
+uv run syndrome-out -d 9 -p 0.15 --seed 42
+uv run syndrome-out 80002A         # replay a board: the seed shown in game also fixes d and p
 uv run pytest                  # acceptance tests
 uv run scripts/threshold_sim.py
 ```
@@ -33,7 +34,7 @@ a Z error: clear it with Z (blue mark). The panel legend shows how many of each 
 ## "All dark, yet wrong"
 
 The whole point of the game is that clearing the board is not the same as succeeding.
-A reproducible example: `uv run syndrome-out -d 5 -p 0.10 --seed 50`. The minimum-weight
+A reproducible example: `uv run syndrome-out 500032` (d=5, p=0.10, `--seed 50`). The minimum-weight
 correction (what the MWPM bot plays, weight 4) turns every tile off and still produces a
 logical X error, because the hidden error has weight 3 and E*C is a logical operator.
 `tests/test_game.py::test_demo_seed_minimum_weight_fails` pins this down.

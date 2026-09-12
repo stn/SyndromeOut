@@ -10,7 +10,15 @@ import numpy as np
 import pyxel
 
 from syndrome_out.code import Face
-from syndrome_out.game import DISTANCES, ERROR_RATES, Board, Toggle
+from syndrome_out.game import (
+    DISTANCES,
+    ERROR_RATES,
+    RAW_BITS,
+    Board,
+    Toggle,
+    pack_seed,
+    unpack_seed,
+)
 
 WIDTH, HEIGHT = 360, 240
 BOARD_W = 236  # board area on the left, panel on the right
@@ -237,13 +245,13 @@ class App:
         if pyxel.btnp(pyxel.KEY_R):
             self.board.reset()
         if pyxel.btnp(pyxel.KEY_N):
-            self.new_board(seed=random.randrange(1_000_000))
+            self.new_board(seed=random.getrandbits(RAW_BITS))
         if pyxel.btnp(pyxel.KEY_D):
             self.d_index = (self.d_index + 1) % len(DISTANCES)
-            self.new_board(seed=random.randrange(1_000_000))
+            self.new_board(seed=random.getrandbits(RAW_BITS))
         if pyxel.btnp(pyxel.KEY_P):
             self.p_index = (self.p_index + 1) % len(ERROR_RATES)
-            self.new_board(seed=random.randrange(1_000_000))
+            self.new_board(seed=random.getrandbits(RAW_BITS))
 
     def new_board(self, seed: int) -> None:
         d, p = DISTANCES[self.d_index], ERROR_RATES[self.p_index]
@@ -423,7 +431,7 @@ class App:
 
         put("SYNDROME OUT", YELLOW, 10)
         put(f"d={board.d}  p={board.p:.2f}")
-        put(f"seed {board.seed}")
+        put(f"seed {pack_seed(board.d, board.p, board.seed):06X}")
         line += 4
         n_xtype, n_ztype = board.lit_counts
         # Legend: tile colour = the correction that clears it (Z-type faces see X errors).
@@ -489,12 +497,32 @@ class App:
 
 def main() -> None:
     ap = argparse.ArgumentParser(prog="syndrome-out", description="Syndrome Out")
-    ap.add_argument("-d", type=int, default=5, choices=DISTANCES, help="code distance")
-    ap.add_argument("-p", type=float, default=0.10, choices=ERROR_RATES, help="error rate")
-    ap.add_argument("--seed", type=int, default=None, help="board seed (random if omitted)")
+    ap.add_argument(
+        "code",
+        nargs="?",
+        type=lambda s: int(s, 16),
+        metavar="HEX",
+        help="the 6-digit seed shown in game; it fixes d, p and the board",
+    )
+    ap.add_argument("-d", type=int, choices=DISTANCES, help="code distance (default 5)")
+    ap.add_argument("-p", type=float, choices=ERROR_RATES, help="error rate (default 0.10)")
+    ap.add_argument("--seed", type=int, help="raw RNG seed (random if omitted)")
     args = ap.parse_args()
-    seed = args.seed if args.seed is not None else random.randrange(1_000_000)
-    App(args.d, args.p, seed)
+    if args.code is None:
+        d = args.d if args.d is not None else 5
+        p = args.p if args.p is not None else 0.10
+        seed = args.seed if args.seed is not None else random.getrandbits(RAW_BITS)
+        if not 0 <= seed < 1 << RAW_BITS:
+            ap.error(f"--seed must be in [0, 2^{RAW_BITS})")
+        App(d, p, seed)
+        return
+    if args.d is not None or args.p is not None or args.seed is not None:
+        ap.error("HEX already encodes d, p and the seed; drop -d / -p / --seed")
+    try:
+        d, p, seed = unpack_seed(args.code)
+    except ValueError as e:
+        ap.error(str(e))
+    App(d, p, seed)
 
 
 if __name__ == "__main__":
