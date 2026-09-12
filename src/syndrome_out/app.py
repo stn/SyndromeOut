@@ -24,6 +24,7 @@ WIDTH, HEIGHT = 360, 240
 BOARD_W = 236  # board area on the left, panel on the right
 PANEL_X = BOARD_W + 6
 MAX_CELL = 28
+VERDICT_Y = 74  # panel row where the JUDGE button, then the verdict readout, is drawn
 
 # Palette indices (see PALETTE below).
 BG, BOARD_BG, TILE_OFF, X_EDGE, Z_EDGE = 0, 1, 2, 3, 4
@@ -183,7 +184,12 @@ class App:
         return None
 
     def judge_button_rect(self) -> tuple[int, int, int, int]:
-        return PANEL_X, 74, WIDTH - PANEL_X - 6, 13
+        """JUDGE sits under the legend; NEW / RETRY moves below the verdict readout."""
+        y = VERDICT_Y
+        v = self.board.verdict
+        if v is not None:
+            y += 8 * (4 if v.not_optimal else 3) + 6
+        return PANEL_X, y, WIDTH - PANEL_X - 6, 13
 
     # -- sounds -----------------------------------------------------------------------------
 
@@ -212,7 +218,7 @@ class App:
         elif pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and self.board.all_clear:
             bx, by, bw, bh = self.judge_button_rect()
             if bx <= pyxel.mouse_x < bx + bw and by <= pyxel.mouse_y < by + bh:
-                self.judge()
+                self.press_judge_button()
 
         self._update_keys()
 
@@ -274,6 +280,22 @@ class App:
     def redo(self) -> None:
         if self.board.redo():
             pyxel.play(0, 0)
+
+    def judge_button_label(self) -> str:
+        """JUDGE before the verdict; afterwards NEW on a clean success, RETRY otherwise."""
+        v = self.board.verdict
+        if v is None:
+            return "JUDGE (Enter)"
+        return "NEW (n)" if v.success and not v.not_optimal else "RETRY (r)"
+
+    def press_judge_button(self) -> None:
+        v = self.board.verdict
+        if v is None:
+            self.judge()
+        elif v.success and not v.not_optimal:
+            self.new_board(seed=random.getrandbits(RAW_BITS))
+        else:
+            self.board.reset()
 
     def judge(self) -> None:
         if self.board.judged:
@@ -443,19 +465,9 @@ class App:
             pyxel.text(x + 10, line + 1, f"{count:>2} {label}", col if count else BUTTON_HI)
             line += 9
 
-        bx, by, bw, bh = self.judge_button_rect()
-        if board.all_clear:
-            enabled = not board.judged
-            pyxel.rect(bx, by, bw, bh, BUTTON if enabled else BOARD_BG)
-            pyxel.rectb(bx, by, bw, bh, BUTTON_HI if enabled else BUTTON)
-            label = "JUDGE (Enter)" if enabled else "JUDGED"
-            pyxel.text(bx + (bw - len(label) * 4) // 2, by + 4, label, TEXT if enabled else BUTTON_HI)
-        else:
-            pyxel.text(bx, by + 4, "Clear every err", GREEN)
-        line = by + bh + 8
-
         v = board.verdict
         if v is not None:
+            line = VERDICT_Y
             if v.success:
                 put("SUCCESS", GREEN)
                 if v.not_optimal:
@@ -465,6 +477,15 @@ class App:
             put("")
             bot = "SUCCESS" if v.bot_success else f"FAIL {v.bot_effect.value} error"
             put(f"bot (MWPM): {bot}", GREEN if v.bot_success else RED)
+
+        bx, by, bw, bh = self.judge_button_rect()
+        if board.all_clear:
+            pyxel.rect(bx, by, bw, bh, BUTTON)
+            pyxel.rectb(bx, by, bw, bh, BUTTON_HI)
+            label = self.judge_button_label()
+            pyxel.text(bx + (bw - len(label) * 4) // 2, by + 4, label, TEXT)
+        else:
+            pyxel.text(bx, by + 4, "Clear every err", GREEN)
 
         line = HEIGHT - 7 * 8 - 4
         put("LMB/x: X  RMB/z: Z  y: Y", BUTTON_HI)
