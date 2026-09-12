@@ -1,6 +1,6 @@
 # Syndrome Out
 
-![Syndrome Out game screen](images/game_screen.png)
+![Syndrome Out game screen](images/game_screen.gif)
 
 [![Play on Web](https://img.shields.io/badge/%E2%96%B6%EF%B8%8E_Play_on_Web-stn.github.io%2FSyndromeOut-2ea44f?style=for-the-badge)](https://stn.github.io/SyndromeOut/)
 
