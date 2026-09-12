@@ -56,14 +56,6 @@ class Verdict:
     def bot_success(self) -> bool:
         return self.bot_effect is LogicalEffect.NONE
 
-    @property
-    def optimal(self) -> bool:
-        return self.success and self.weight <= self.bot_weight
-
-    @property
-    def beat_bot(self) -> bool:
-        return self.success and not self.bot_success
-
 
 @dataclass(slots=True)
 class Board:

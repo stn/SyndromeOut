@@ -457,20 +457,12 @@ class App:
         v = board.verdict
         if v is not None:
             if v.success:
-                put("SUCCESS  class I", GREEN)
-                if v.optimal:
-                    put("OPTIMAL weight", YELLOW)
+                put("SUCCESS", GREEN)
             else:
-                bar = v.effect.value
-                put(f"FAIL  class {bar}-bar", RED)
-                put(f"logical {bar} error", RED)
-                put("all dark, yet wrong:", BUTTON_HI)
-                put("E*C is a logical op", BUTTON_HI)
-            put(f"|C|={v.weight}  bot |C|={v.bot_weight}")
-            bot = "OK" if v.bot_success else f"FAIL ({v.bot_effect.value}-bar)"
+                put(f"FAIL {v.effect.value} error", RED)
+            put("")
+            bot = "SUCCESS" if v.bot_success else f"FAIL {v.bot_effect.value} error"
             put(f"bot (MWPM): {bot}", GREEN if v.bot_success else RED)
-            if v.beat_bot:
-                put("YOU BEAT THE BOT!", YELLOW)
 
         line = HEIGHT - 7 * 8 - 4
         put("LMB/x: X  RMB/z: Z  y: Y", BUTTON_HI)

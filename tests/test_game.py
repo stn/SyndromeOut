@@ -48,8 +48,6 @@ def test_bot_correction_succeeds() -> None:
     assert v is not None
     assert v.effect is v.bot_effect
     assert v.weight == v.bot_weight
-    if v.success:
-        assert v.optimal
     # Judged boards are frozen.
     b.toggle(0, "X")
     assert b.correction == b.bot_correction
