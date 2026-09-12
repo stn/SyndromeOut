@@ -747,8 +747,12 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },
-    { name = "pymatching" },
     { name = "pyxel" },
+]
+
+[package.optional-dependencies]
+mwpm = [
+    { name = "pymatching" },
 ]
 
 [package.dev-dependencies]
@@ -760,9 +764,10 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "numpy", specifier = ">=2.0" },
-    { name = "pymatching", specifier = ">=2.2" },
+    { name = "pymatching", marker = "extra == 'mwpm'", specifier = ">=2.2" },
     { name = "pyxel", specifier = ">=2.2" },
 ]
+provides-extras = ["mwpm"]
 
 [package.metadata.requires-dev]
 dev = [

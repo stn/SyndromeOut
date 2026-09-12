@@ -8,10 +8,19 @@ from typing import Literal
 import numpy as np
 
 from syndrome_out.code import SurfaceCode, Syndrome
-from syndrome_out.decoder import decode_mwpm
+from syndrome_out.decoder import decode
 from syndrome_out.judge import LogicalEffect, logical_effect
 from syndrome_out.noise import sample_depolarizing
 from syndrome_out.pauli import Pauli
+
+# The bot plays a minimum-weight correction. With the `mwpm` extra installed it comes from
+# PyMatching and is labelled as such; otherwise the built-in frontier decoder supplies it
+# (same weight, possibly a different tie-break).
+try:
+    from syndrome_out.decoder_pymatching import decode_mwpm
+except ImportError:
+    decode_mwpm = None
+BOT_LABEL = "bot (MWPM)" if decode_mwpm else "bot"
 
 Toggle = Literal["X", "Z", "Y"]
 
@@ -47,6 +56,7 @@ class Verdict:
     weight: int
     bot_weight: int
     bot_effect: LogicalEffect
+    ml_effect: LogicalEffect
     error_weight: int
 
     @property
@@ -56,6 +66,16 @@ class Verdict:
     @property
     def bot_success(self) -> bool:
         return self.bot_effect is LogicalEffect.NONE
+
+    @property
+    def not_ml(self) -> bool:
+        """Succeeded, but the most likely class (summed over all consistent errors) was another one."""
+        return self.success and self.ml_effect is not LogicalEffect.NONE
+
+    @property
+    def failed_as_ml(self) -> bool:
+        """Failed while playing the most likely class: the board was a losing one."""
+        return not self.success and self.ml_effect is self.effect
 
     @property
     def not_optimal(self) -> bool:
@@ -75,7 +95,10 @@ class Board:
     seed: int
     error: Pauli = field(init=False)
     correction: Pauli = field(init=False)
-    bot_correction: Pauli = field(init=False)
+    bot_correction: Pauli = field(init=False)  # minimum weight (PyMatching if installed)
+    ml_correction: Pauli = field(
+        init=False
+    )  # lightest member of the most likely class (NOT ML tag)
     verdict: Verdict | None = field(init=False, default=None)
     _undo: list[Pauli] = field(init=False, default_factory=list)
     _redo: list[Pauli] = field(init=False, default_factory=list)
@@ -83,7 +106,12 @@ class Board:
     def __post_init__(self) -> None:
         self.error = sample_depolarizing(self.code, self.p, self.seed)
         self.correction = Pauli.identity(self.code.n)
-        self.bot_correction = decode_mwpm(self.code, self.code.syndrome(self.error))
+        syndrome = self.code.syndrome(self.error)
+        decoding = decode(self.code, syndrome, self.p)
+        self.bot_correction = (
+            decode_mwpm(self.code, syndrome) if decode_mwpm else decoding.min_weight
+        )
+        self.ml_correction = decoding.ml
 
     @classmethod
     def new(cls, d: int, p: float, seed: int) -> Board:
@@ -166,9 +194,10 @@ class Board:
             return None
         effect = logical_effect(self.code, self.residual)
         bot_effect = logical_effect(self.code, self.error * self.bot_correction)
+        ml_effect = logical_effect(self.code, self.error * self.ml_correction)
         weight = self.correction.weight
         bot_weight = self.bot_correction.weight
-        self.verdict = Verdict(effect, weight, bot_weight, bot_effect, self.error.weight)
+        self.verdict = Verdict(effect, weight, bot_weight, bot_effect, ml_effect, self.error.weight)
         return self.verdict
 
     def crossing_logicals(self) -> list[Pauli]:

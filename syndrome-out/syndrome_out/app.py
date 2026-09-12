@@ -11,6 +11,7 @@ import pyxel
 
 from syndrome_out.code import Face
 from syndrome_out.game import (
+    BOT_LABEL,
     DISTANCES,
     ERROR_RATES,
     RAW_BITS,
@@ -78,9 +79,9 @@ HELP_LINES = [
     "the logical qubit. This is called",
     "DEGENERACY: you cannot see E, only",
     "its syndrome, so you must guess the",
-    "most likely class. Lighter is",
-    "usually (not always) safer.",
-    "",
+    "most likely class (summed over every",
+    "error). 'but not ML: Z': the class a Z",
+    "away was likelier; 'but ML': yours was.",
     "press ? to close",
 ]
 
@@ -89,7 +90,7 @@ HELP_LINES = [
 # half-width cell (about 27 characters including the weight suffix).
 VIEWS = (
     ("C", YELLOW, "C  your correction"),
-    ("B", BLUE, "B  bot (MWPM)"),
+    ("B", BLUE, f"B  {BOT_LABEL}"),
     ("E", GREEN, "E  true error"),
     ("R", RED, "R  residual E*C"),
 )
@@ -188,7 +189,7 @@ class App:
         y = VERDICT_Y
         v = self.board.verdict
         if v is not None:
-            y += 8 * (4 if v.not_optimal else 3) + 6
+            y += 8 * (3 + v.not_optimal) + 6  # verdict, tag, blank, bot line
         return PANEL_X, y, WIDTH - PANEL_X - 6, 13
 
     # -- sounds -----------------------------------------------------------------------------
@@ -469,14 +470,16 @@ class App:
         if v is not None:
             line = VERDICT_Y
             if v.success:
-                put("SUCCESS", GREEN)
+                ml = f" (but not ML: {v.ml_effect.value})" if v.not_ml else ""
+                put(f"SUCCESS{ml}", GREEN)
                 if v.not_optimal:
                     put("NOT OPTIMAL", YELLOW)
             else:
-                put(f"FAIL {v.effect.value} error", RED)
+                ml = " (but ML)" if v.failed_as_ml else ""
+                put(f"FAIL {v.effect.value} error{ml}", RED)
             put("")
             bot = "SUCCESS" if v.bot_success else f"FAIL {v.bot_effect.value} error"
-            put(f"bot (MWPM): {bot}", GREEN if v.bot_success else RED)
+            put(f"{BOT_LABEL}: {bot}", GREEN if v.bot_success else RED)
 
         bx, by, bw, bh = self.judge_button_rect()
         if board.all_clear:

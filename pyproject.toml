@@ -9,8 +9,11 @@ authors = [{ name = "Akira Ishino", email = "akira@lumilab.jp" }]
 dependencies = [
     "numpy>=2.0",
     "pyxel>=2.2",
-    "pymatching>=2.2",
 ]
+
+[project.optional-dependencies]
+# Reference MWPM backend for cross-checking the frontier decoder; not needed to play.
+mwpm = ["pymatching>=2.2"]
 
 [project.scripts]
 syndrome-out = "syndrome_out.app:main"

@@ -3,7 +3,7 @@
 import pytest
 
 from syndrome_out import LogicalEffect, Pauli
-from syndrome_out.game import DISTANCES, ERROR_RATES, Board, pack_seed, unpack_seed
+from syndrome_out.game import DISTANCES, ERROR_RATES, Board, decode_mwpm, pack_seed, unpack_seed
 
 
 def test_toggle_updates_lit_faces() -> None:
@@ -63,7 +63,7 @@ def test_stabilizer_on_clean_board_is_not_optimal() -> None:
     assert b.all_clear
     v = b.judge()
     assert v is not None
-    assert v.success and v.bot_success
+    assert v.success and v.bot_success and not v.not_ml
     assert v.weight == len(face.qubits) and v.error_weight == 0
     assert v.not_optimal
 
@@ -77,7 +77,7 @@ def test_clearing_with_a_logical_error_fails() -> None:
     v = b.judge()
     assert v is not None
     assert v.effect is LogicalEffect.X
-    assert not v.success
+    assert not v.success and not v.failed_as_ml  # a clean board's likeliest class is I
     assert v.bot_success
     assert b.crossing_logicals() == [b.code.logical_z]
 
@@ -93,7 +93,7 @@ def test_reset_keeps_seed_and_error() -> None:
 
 
 def test_demo_seed_minimum_weight_fails() -> None:
-    """The seed documented in README: MWPM clears the board but flips the logical qubit."""
+    """The seed documented in README: both bots clear the board but flip the logical qubit."""
     assert unpack_seed(0x50FCF8) == (5, 0.10, 64760)
     b = Board.new(5, 0.10, seed=64760)
     for q in range(b.code.n):
@@ -103,7 +103,23 @@ def test_demo_seed_minimum_weight_fails() -> None:
     v = b.judge()
     assert v is not None and b.all_clear
     assert v.effect is LogicalEffect.Z
-    assert v.weight == 6 and b.error.weight == 5
+    assert v.ml_effect is LogicalEffect.Z
+    assert v.failed_as_ml and not v.not_ml  # shown as FAIL Z error (but ML)
+    # X and Z parts are each minimal either way; PyMatching's tie-break happens not to overlap them.
+    assert v.weight == (6 if decode_mwpm else 5) and b.error.weight == 5
+
+
+def test_demo_seed_true_error_is_not_ml() -> None:
+    """Playing the hidden error itself succeeds, but the likelier class was the other one."""
+    b = Board.new(5, 0.10, seed=64760)
+    for q in range(b.code.n):
+        k = b.error.kind(q)
+        if k != "I":
+            b.toggle(q, k)
+    v = b.judge()
+    assert v is not None and v.success
+    assert v.not_ml and not v.not_optimal
+    assert v.ml_effect is LogicalEffect.Z  # shown as SUCCESS (but not ML: Z)
 
 
 def test_seed_code_round_trip() -> None:
