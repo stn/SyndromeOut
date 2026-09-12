@@ -429,10 +429,9 @@ class App:
             pyxel.text(x, line, s, col)
             line += dy
 
-        put("SYNDROME OUT", YELLOW, 10)
-        put(f"d={board.d}  p={board.p:.2f}")
-        put(f"seed {pack_seed(board.d, board.p, board.seed):06X}")
-        line += 4
+        put("SYNDROME OUT", YELLOW, 14)
+        put(f"d={board.d}  p={board.p:.2f}  seed {pack_seed(board.d, board.p, board.seed):06X}")
+        line += 8
         n_xtype, n_ztype = board.lit_counts
         # Legend: tile colour = the correction that clears it (Z-type faces see X errors).
         for col, count, label in (
