@@ -37,9 +37,9 @@ side by side. Qubit marks are drawn along the faces they flip.
 ## Packaging
 
 ```sh
-uv run pyxel package src src/main.py   # -> src.pyxapp (needs pyxel, numpy, pymatching on the player's side)
-uv run pyxel play src.pyxapp
-uv run pyxel app2exe src.pyxapp        # -> dist/src/src.exe, self-contained (PyInstaller, dev group)
+uv run pyxel package syndrome-out syndrome-out/main.py   # -> syndrome-out.pyxapp
+uv run pyxel play syndrome-out.pyxapp                    # player needs pyxel, numpy, pymatching
+uv run pyxel app2exe syndrome-out.pyxapp                 # -> dist/syndrome-out/ (PyInstaller, dev group)
 ```
 
 The `.pyxapp` only bundles the sources, so whoever plays it needs `pip install pyxel numpy pymatching`.
