@@ -34,6 +34,18 @@ After judging, the board area splits into a 2x2 grid showing your correction C (
 the MWPM bot's correction B (blue), the true error E (green) and the residual R = E*C (red)
 side by side. Qubit marks are drawn along the faces they flip.
 
+## Packaging
+
+```sh
+uv run pyxel package src src/main.py   # -> src.pyxapp (needs pyxel, numpy, pymatching on the player's side)
+uv run pyxel play src.pyxapp
+uv run pyxel app2exe src.pyxapp        # -> dist/src/src.exe, self-contained (PyInstaller, dev group)
+```
+
+The `.pyxapp` only bundles the sources, so whoever plays it needs `pip install pyxel numpy pymatching`.
+The exe folder bundles everything, including pymatching's C++ extension and the scipy / matplotlib it
+pulls in, so expect a few hundred MB. `pyxel app2html` is not an option: pymatching has no wasm build.
+
 ## "All dark, yet wrong"
 
 The whole point of the game is that clearing the board is not the same as succeeding.

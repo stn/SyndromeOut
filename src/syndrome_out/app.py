@@ -506,7 +506,7 @@ class App:
             y += 8
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="syndrome-out", description="Syndrome Out")
     ap.add_argument(
         "code",
@@ -518,7 +518,7 @@ def main() -> None:
     ap.add_argument("-d", type=int, choices=DISTANCES, help="code distance (default 5)")
     ap.add_argument("-p", type=float, choices=ERROR_RATES, help="error rate (default 0.10)")
     ap.add_argument("--seed", type=int, help="raw RNG seed (random if omitted)")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     if args.code is None:
         d = args.d if args.d is not None else 5
         p = args.p if args.p is not None else 0.10

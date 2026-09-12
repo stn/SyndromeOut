@@ -16,7 +16,10 @@ dependencies = [
 syndrome-out = "syndrome_out.app:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "pyinstaller>=6",
+    "pytest>=8",
+]
 
 [build-system]
 requires = ["hatchling"]
