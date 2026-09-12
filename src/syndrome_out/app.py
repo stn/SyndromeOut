@@ -469,7 +469,6 @@ class App:
             put(f"|C|={v.weight}  bot |C|={v.bot_weight}")
             bot = "OK" if v.bot_success else f"FAIL ({v.bot_effect.value}-bar)"
             put(f"bot (MWPM): {bot}", GREEN if v.bot_success else RED)
-            put(f"score {v.score}", YELLOW)
             if v.beat_bot:
                 put("YOU BEAT THE BOT!", YELLOW)
 

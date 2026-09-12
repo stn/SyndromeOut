@@ -26,11 +26,3 @@ def logical_effect(code: SurfaceCode, residual: Pauli) -> LogicalEffect:
     has_x = residual.symplectic(code.logical_z)
     has_z = residual.symplectic(code.logical_x)
     return LogicalEffect("IXZY"[has_x + 2 * has_z])
-
-
-def score(d: int, weight: int, bot_weight: int) -> int:
-    """Base 100*d, +50 when no heavier than the bot, otherwise -10 per extra unit of weight."""
-    base = 100 * d
-    if weight <= bot_weight:
-        return base + 50
-    return base - 10 * (weight - bot_weight)

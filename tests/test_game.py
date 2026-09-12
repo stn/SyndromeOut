@@ -50,7 +50,6 @@ def test_bot_correction_succeeds() -> None:
     assert v.weight == v.bot_weight
     if v.success:
         assert v.optimal
-        assert v.score == 100 * 5 + 50
     # Judged boards are frozen.
     b.toggle(0, "X")
     assert b.correction == b.bot_correction
@@ -66,7 +65,6 @@ def test_clearing_with_a_logical_error_fails() -> None:
     assert v is not None
     assert v.effect is LogicalEffect.X
     assert not v.success
-    assert v.score == 0
     assert v.bot_success
     assert b.crossing_logicals() == [b.code.logical_z]
 

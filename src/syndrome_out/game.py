@@ -9,7 +9,7 @@ import numpy as np
 
 from syndrome_out.code import SurfaceCode, Syndrome
 from syndrome_out.decoder import decode_mwpm
-from syndrome_out.judge import LogicalEffect, logical_effect, score
+from syndrome_out.judge import LogicalEffect, logical_effect
 from syndrome_out.noise import sample_depolarizing
 from syndrome_out.pauli import Pauli
 
@@ -47,7 +47,6 @@ class Verdict:
     weight: int
     bot_weight: int
     bot_effect: LogicalEffect
-    score: int
 
     @property
     def success(self) -> bool:
@@ -168,8 +167,7 @@ class Board:
         bot_effect = logical_effect(self.code, self.error * self.bot_correction)
         weight = self.correction.weight
         bot_weight = self.bot_correction.weight
-        pts = score(self.d, weight, bot_weight) if effect is LogicalEffect.NONE else 0
-        self.verdict = Verdict(effect, weight, bot_weight, bot_effect, pts)
+        self.verdict = Verdict(effect, weight, bot_weight, bot_effect)
         return self.verdict
 
     def crossing_logicals(self) -> list[Pauli]:
