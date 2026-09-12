@@ -20,6 +20,7 @@ from syndrome_out.game import (
     pack_seed,
     unpack_seed,
 )
+from syndrome_out.web import show_code_in_url
 
 WIDTH, HEIGHT = 360, 240
 BOARD_W = 236  # board area on the left, panel on the right
@@ -116,6 +117,7 @@ class App:
         self.d_index = DISTANCES.index(d)
         self.p_index = ERROR_RATES.index(p)
         self.board = Board.new(d, p, seed)
+        show_code_in_url(pack_seed(d, p, seed))
         self.cursor = (d // 2, d // 2)
         self.show_help = False
         self.hover: int | None = None
@@ -263,6 +265,7 @@ class App:
     def new_board(self, seed: int) -> None:
         d, p = DISTANCES[self.d_index], ERROR_RATES[self.p_index]
         self.board = Board.new(d, p, seed)
+        show_code_in_url(pack_seed(d, p, seed))
         self.cursor = (min(self.cursor[0], d - 1), min(self.cursor[1], d - 1))
         self._layout()
 
