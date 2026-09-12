@@ -474,10 +474,9 @@ class App:
             if v.beat_bot:
                 put("YOU BEAT THE BOT!", YELLOW)
 
-        line = HEIGHT - 8 * 8 - 4
+        line = HEIGHT - 7 * 8 - 4
         put("LMB/x: X  RMB/z: Z  y: Y", BUTTON_HI)
         put("arrows/hjkl: cursor", BUTTON_HI)
-        put("Enter: judge", BUTTON_HI)
         put("r: retry   n: new", BUTTON_HI)
         put("u: undo  U: redo", BUTTON_HI)
         put("d: size   p: noise", BUTTON_HI)
