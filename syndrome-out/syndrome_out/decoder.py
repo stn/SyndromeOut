@@ -3,9 +3,8 @@
 X and Z errors are decoded independently (spec 5). For one error type the data qubits are
 swept in row-major order; the DP state is the parity of every stabilizer face that has been
 opened but not yet closed, plus one bit for the logical class of the partial assignment. A
-face closes at its last qubit, where its parity is checked against the syndrome. This is the
-frontier method behind the ZDD experiments, run once per syndrome instead of being reduced
-into a diagram, with back-pointers so the minimum-weight witness can be read off.
+face closes at its last qubit, where its parity is checked against the syndrome. Back-pointers
+let the minimum-weight witness be read off after the sweep.
 
 The minimum-weight witness is what MWPM computes for the surface code; the per-class
 likelihood sum (over every error consistent with the syndrome) additionally gives the

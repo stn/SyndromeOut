@@ -49,9 +49,8 @@ correction B fared on the same board.
 
 ## Decoder
 
-The bot and the ML verdict come from one pure-Python frontier sweep (`syndrome_out/decoder.py`), the same
-construction as a frontier-method ZDD but run once per syndrome instead of being reduced
-into a diagram. Data qubits are visited in row-major order; the DP state is the parity of
+The bot and the ML verdict come from one pure-Python frontier sweep (`syndrome_out/decoder.py`).
+Data qubits are visited in row-major order; the DP state is the parity of
 every stabilizer face that has been opened but not yet closed, plus one bit for the logical
 class, and a face is checked against the syndrome when its last qubit is passed. At d=9 the
 frontier holds at most 7 faces, so a sweep touches a few hundred states and takes about 3 ms.
