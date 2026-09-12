@@ -458,6 +458,8 @@ class App:
         if v is not None:
             if v.success:
                 put("SUCCESS", GREEN)
+                if v.not_optimal:
+                    put("NOT OPTIMAL", YELLOW)
             else:
                 put(f"FAIL {v.effect.value} error", RED)
             put("")

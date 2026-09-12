@@ -47,6 +47,7 @@ class Verdict:
     weight: int
     bot_weight: int
     bot_effect: LogicalEffect
+    error_weight: int
 
     @property
     def success(self) -> bool:
@@ -55,6 +56,14 @@ class Verdict:
     @property
     def bot_success(self) -> bool:
         return self.bot_effect is LogicalEffect.NONE
+
+    @property
+    def not_optimal(self) -> bool:
+        """A lighter successful correction is known: the hidden error itself, or the bot's (if it succeeded)."""
+        bound = self.error_weight
+        if self.bot_success:
+            bound = min(bound, self.bot_weight)
+        return self.success and self.weight > bound
 
 
 @dataclass(slots=True)
@@ -159,7 +168,7 @@ class Board:
         bot_effect = logical_effect(self.code, self.error * self.bot_correction)
         weight = self.correction.weight
         bot_weight = self.bot_correction.weight
-        self.verdict = Verdict(effect, weight, bot_weight, bot_effect)
+        self.verdict = Verdict(effect, weight, bot_weight, bot_effect, self.error.weight)
         return self.verdict
 
     def crossing_logicals(self) -> list[Pauli]:

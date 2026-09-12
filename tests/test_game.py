@@ -48,9 +48,24 @@ def test_bot_correction_succeeds() -> None:
     assert v is not None
     assert v.effect is v.bot_effect
     assert v.weight == v.bot_weight
+    if v.success:
+        assert v.not_optimal == (v.weight > b.error.weight)
     # Judged boards are frozen.
     b.toggle(0, "X")
     assert b.correction == b.bot_correction
+
+
+def test_stabilizer_on_clean_board_is_not_optimal() -> None:
+    b = Board.new(3, 0.0, seed=0)
+    face = b.code.faces[0]
+    for q in face.qubits:
+        b.toggle(q, face.kind)
+    assert b.all_clear
+    v = b.judge()
+    assert v is not None
+    assert v.success and v.bot_success
+    assert v.weight == len(face.qubits) and v.error_weight == 0
+    assert v.not_optimal
 
 
 def test_clearing_with_a_logical_error_fails() -> None:
