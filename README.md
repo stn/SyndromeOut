@@ -23,13 +23,16 @@ a Z error: clear it with Z (blue mark). The panel legend shows how many of each 
 | left click / `x` | toggle X on the qubit under the mouse / cursor |
 | right click / `z` | toggle Z |
 | `y` | toggle Y (X and Z) |
-| arrows | move the keyboard cursor |
+| arrows / `hjkl` | move the keyboard cursor |
 | Enter or JUDGE button | judge (only when every tile is dark) |
-| `a` | after judging, cycle what the board shows, drawn as chains between faces: your C (yellow), the MWPM bot's C (blue), true error E (green), residual R = E*C (red) |
 | `u` / `U` (or Ctrl+Z / Ctrl+Y) | undo / redo |
 | `r` / `n` | retry the same seed / new random seed |
 | `d` / `p` | cycle distance 3-5-7-9 / error rate 0.05-0.10-0.15 |
-| `h` | help, including the difference from Lights Out |
+| `?` | help, including the difference from Lights Out |
+
+After judging, the board area splits into a 2x2 grid showing your correction C (yellow),
+the MWPM bot's correction B (blue), the true error E (green) and the residual R = E*C (red)
+side by side. Qubit marks are drawn along the faces they flip.
 
 ## "All dark, yet wrong"
 

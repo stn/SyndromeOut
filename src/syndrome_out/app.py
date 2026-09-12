@@ -80,7 +80,7 @@ HELP_LINES = [
     "most likely class. Lighter is",
     "usually (not always) safer.",
     "",
-    "press H to close",
+    "press ? to close",
 ]
 
 
@@ -197,7 +197,7 @@ class App:
 
     def update(self) -> None:
         self.pressed = None
-        if pyxel.btnp(pyxel.KEY_H):
+        if pyxel.btnp(pyxel.KEY_SLASH) and pyxel.btn(pyxel.KEY_SHIFT):  # '?'
             self.show_help = not self.show_help
         if self.show_help:
             return
@@ -219,13 +219,13 @@ class App:
     def _update_keys(self) -> None:
         d = self.board.d
         r, c = self.cursor
-        if pyxel.btnp(pyxel.KEY_LEFT, 10, 3):
+        if pyxel.btnp(pyxel.KEY_LEFT, 10, 3) or pyxel.btnp(pyxel.KEY_H, 10, 3):
             c = (c - 1) % d
-        if pyxel.btnp(pyxel.KEY_RIGHT, 10, 3):
+        if pyxel.btnp(pyxel.KEY_RIGHT, 10, 3) or pyxel.btnp(pyxel.KEY_L, 10, 3):
             c = (c + 1) % d
-        if pyxel.btnp(pyxel.KEY_UP, 10, 3):
+        if pyxel.btnp(pyxel.KEY_UP, 10, 3) or pyxel.btnp(pyxel.KEY_K, 10, 3):
             r = (r - 1) % d
-        if pyxel.btnp(pyxel.KEY_DOWN, 10, 3):
+        if pyxel.btnp(pyxel.KEY_DOWN, 10, 3) or pyxel.btnp(pyxel.KEY_J, 10, 3):
             r = (r + 1) % d
         self.cursor = (r, c)
         q = self.board.code.qubit_index(r, c)
@@ -480,17 +480,20 @@ class App:
 
         line = HEIGHT - 8 * 8 - 4
         put("LMB/x: X  RMB/z: Z  y: Y", BUTTON_HI)
-        put("arrows: cursor", BUTTON_HI)
+        put("arrows/hjkl: cursor", BUTTON_HI)
         put("Enter: judge", BUTTON_HI)
         put("r: retry   n: new", BUTTON_HI)
         put("u: undo  U: redo", BUTTON_HI)
         put("d: size   p: noise", BUTTON_HI)
-        put("h: help  Esc: quit", BUTTON_HI)
+        put("?: help  Esc: quit", BUTTON_HI)
 
     def draw_help(self) -> None:
         y = 6
         for s in HELP_LINES:
-            col = YELLOW if s.isupper() and s else TEXT
+            if s is HELP_LINES[-1]:
+                col = GREEN
+            else:
+                col = YELLOW if s.isupper() and s else TEXT
             pyxel.text(8, y, s, col)
             y += 8
 
