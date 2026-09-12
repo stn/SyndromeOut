@@ -209,7 +209,7 @@ class App:
                 self.toggle(self.hover, "X")
             if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
                 self.toggle(self.hover, "Z")
-        elif pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+        elif pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and self.board.all_clear:
             bx, by, bw, bh = self.judge_button_rect()
             if bx <= pyxel.mouse_x < bx + bw and by <= pyxel.mouse_y < by + bh:
                 self.judge()
@@ -443,16 +443,16 @@ class App:
             pyxel.rectb(x - 1, line - 1, 8, 8, col if count else BUTTON)
             pyxel.text(x + 10, line + 1, f"{count:>2} {label}", col if count else BUTTON_HI)
             line += 9
-        put(f"|C| = {board.correction.weight}")
-        line += 4
-        line += 10
 
         bx, by, bw, bh = self.judge_button_rect()
-        enabled = board.all_clear and not board.judged
-        pyxel.rect(bx, by, bw, bh, BUTTON if enabled else BOARD_BG)
-        pyxel.rectb(bx, by, bw, bh, BUTTON_HI if enabled else BUTTON)
-        label = "JUDGE (Enter)" if not board.judged else "JUDGED"
-        pyxel.text(bx + (bw - len(label) * 4) // 2, by + 4, label, TEXT if enabled else BUTTON_HI)
+        if board.all_clear:
+            enabled = not board.judged
+            pyxel.rect(bx, by, bw, bh, BUTTON if enabled else BOARD_BG)
+            pyxel.rectb(bx, by, bw, bh, BUTTON_HI if enabled else BUTTON)
+            label = "JUDGE (Enter)" if enabled else "JUDGED"
+            pyxel.text(bx + (bw - len(label) * 4) // 2, by + 4, label, TEXT if enabled else BUTTON_HI)
+        else:
+            pyxel.text(bx, by + 4, "Clear every err", GREEN)
         line = by + bh + 8
 
         v = board.verdict
@@ -473,10 +473,6 @@ class App:
             put(f"score {v.score}", YELLOW)
             if v.beat_bot:
                 put("YOU BEAT THE BOT!", YELLOW)
-        elif board.all_clear:
-            put("all dark. judge?", GREEN)
-        else:
-            put("clear every tile", BUTTON_HI)
 
         line = HEIGHT - 8 * 8 - 4
         put("LMB/x: X  RMB/z: Z  y: Y", BUTTON_HI)
