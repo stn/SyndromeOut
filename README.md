@@ -2,6 +2,8 @@
 
 ![Syndrome Out game screen](images/game_screen.png)
 
+[![Play on Web](https://img.shields.io/badge/%E2%96%B6%EF%B8%8E_Play_on_Web-stn.github.io%2FSyndromeOut-2ea44f?style=for-the-badge)](https://stn.github.io/SyndromeOut/)
+
 Lights Out for the rotated surface code. Clear every lit stabilizer face by placing
 X / Z corrections on data qubits, then find out whether your correction caused a
 logical error.
@@ -77,6 +79,9 @@ As a bonus, both dependencies exist in Pyodide, so the same code also runs in a 
 `uv run scripts/build_web.py` writes `dist/web/index.html` (via `pyxel app2html`, plus numpy
 in the page's package list; Pyxel, Pyodide and numpy are fetched from CDNs at load time).
 Try it with `python -m http.server -d dist/web`.
+
+The browser version is published at <https://stn.github.io/SyndromeOut/>; every push to `main`
+rebuilds and deploys it via `.github/workflows/pages.yml`.
 
 ## "All dark, yet wrong"
 
