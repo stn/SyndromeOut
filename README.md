@@ -1,8 +1,10 @@
 # Syndrome Out
 
+![Syndrome Out game screen](images/game_screen.png)
+
 Lights Out for the rotated surface code. Clear every lit stabilizer face by placing
 X / Z corrections on data qubits, then find out whether your correction caused a
-logical error. See `syndrome-out-spec.md` for the design document.
+logical error.
 
 ```
 uv sync
@@ -49,9 +51,10 @@ pulls in, so expect a few hundred MB. `pyxel app2html` is not an option: pymatch
 ## "All dark, yet wrong"
 
 The whole point of the game is that clearing the board is not the same as succeeding.
-A reproducible example: `uv run syndrome-out 500032` (d=5, p=0.10, `--seed 50`). The minimum-weight
-correction (what the MWPM bot plays, weight 4) turns every tile off and still produces a
-logical X error, because the hidden error has weight 3 and E*C is a logical operator.
-`tests/test_game.py::test_demo_seed_minimum_weight_fails` pins this down.
+A reproducible example: `uv run syndrome-out 50FCF8`. The minimum-weight
+correction (what the MWPM bot plays, weight 6) turns every tile off and still produces a
+logical Z error, because the hidden error has weight 5 and E*C is a logical operator.
+
+![Seed 50FCF8 after judging: all dark, FAIL Z error](images/50FCF8.png)
 
 Licensed under the MIT License. See [LICENSE](LICENSE).

@@ -94,16 +94,16 @@ def test_reset_keeps_seed_and_error() -> None:
 
 def test_demo_seed_minimum_weight_fails() -> None:
     """The seed documented in README: MWPM clears the board but flips the logical qubit."""
-    assert unpack_seed(0x500032) == (5, 0.10, 50)
-    b = Board.new(5, 0.10, seed=50)
+    assert unpack_seed(0x50FCF8) == (5, 0.10, 64760)
+    b = Board.new(5, 0.10, seed=64760)
     for q in range(b.code.n):
         k = b.bot_correction.kind(q)
         if k != "I":
             b.toggle(q, k)
     v = b.judge()
     assert v is not None and b.all_clear
-    assert v.effect is LogicalEffect.X
-    assert v.weight == 4 and b.error.weight == 3
+    assert v.effect is LogicalEffect.Z
+    assert v.weight == 6 and b.error.weight == 5
 
 
 def test_seed_code_round_trip() -> None:
