@@ -291,7 +291,7 @@ class App:
         lit = board.lit[-1]
         if board.judged and self.view != RESIDUAL_VIEW:
             # C, E and the bot's correction all share the original syndrome: re-light it so the
-            # paths visibly connect the defects. R is syndrome-free, so it stays dark.
+            # marks visibly sit between the defects. R is syndrome-free, so it stays dark.
             lit = code.syndrome(board.error)[-1]
         size = (board.d + 1) * self.cs
         pyxel.rect(self.ox - 2, self.oy - 2, size + 4, size + 4, BOARD_BG)
@@ -325,8 +325,6 @@ class App:
                 pyxel.rectb(x - 1, y - 1, w + 2, h + 2, TEXT)
 
         if board.judged:
-            if not stab_faces:
-                self.draw_pauli_paths(self.shown_pauli())
             self.draw_logical_paths()
 
         cursor_q = code.qubit_index(*self.cursor)
@@ -346,11 +344,18 @@ class App:
             pyxel.circb(x, y, r, BUTTON_HI)
         k = self.shown_pauli().kind(q)
         m = max(1, r - 2)
+        # Each mark is a thick stroke along the diagonal joining the two faces it flips: the
+        # checkerboard puts the Z-type (red) faces of qubit (r, c) on the TL-BR diagonal when
+        # r + c is even and on the TR-BL diagonal otherwise; the X-type (blue) faces sit on
+        # the other one. Y draws both, so it reads as a two-coloured cross.
+        r_, c_ = self.board.code.qubit_pos(q)
+        red_sign = 1 if (r_ + c_) % 2 == 0 else -1
         if k in ("X", "Y"):
-            pyxel.line(x - m, y - m, x + m, y + m, RED)
-            pyxel.line(x - m, y + m, x + m, y - m, RED)
+            for dx in (-1, 0, 1):
+                pyxel.line(x - m * red_sign + dx, y - m, x + m * red_sign + dx, y + m, RED)
         if k in ("Z", "Y"):
-            pyxel.rect(x - m, y - 1, 2 * m + 1, 3, Z_LIT)
+            for dx in (-1, 0, 1):
+                pyxel.line(x + m * red_sign + dx, y - m, x - m * red_sign + dx, y + m, BLUE)
         if k != "I" and self.board.judged:
             pyxel.circb(x, y, r + 1, VIEWS[self.view][1])
         if is_cursor:
@@ -369,31 +374,6 @@ class App:
                     pyxel.rect(x0 + t, y0 - 1, 3, 3, TEXT)
                 else:
                     pyxel.rect(x0 - 1, y0 + t, 3, 3, TEXT)
-
-    def draw_pauli_paths(self, pauli) -> None:
-        """Draw a Pauli as chains: each X (Z) on a qubit is an edge between the two Z-type
-        (X-type) faces that contain it, or a stub out to the boundary when there is only one."""
-        code = self.board.code
-        for q in range(code.n):
-            qx, qy = self.qubit_xy(q)
-            for part, kind, col in ((pauli.x, "Z", RED), (pauli.z, "X", BLUE)):
-                if not part[q]:
-                    continue
-                ends = [
-                    self.face_xy(code.faces[f])
-                    for f in code.faces_of_qubit[q]
-                    if code.faces[f].kind == kind
-                ]
-                if len(ends) == 1:
-                    ((fx, fy),) = ends
-                    ends.append((qx + (qx - fx) // 2, qy + (qy - fy) // 2))
-                (x0, y0), (x1, y1) = ends
-                # Dark outline first so the path reads on top of a lit tile of the same colour.
-                for dx in (-1, 0, 1, 2):
-                    for dy in (-1, 0, 1, 2):
-                        pyxel.line(x0 + dx, y0 + dy, x1 + dx, y1 + dy, BG)
-                for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
-                    pyxel.line(x0 + dx, y0 + dy, x1 + dx, y1 + dy, col)
 
     def draw_view_banner(self) -> None:
         _, col, banner = VIEWS[self.view]
