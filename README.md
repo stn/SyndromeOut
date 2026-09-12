@@ -80,12 +80,15 @@ in the page's package list; Pyxel, Pyodide and numpy are fetched from CDNs at lo
 Try it with `python -m http.server -d dist/web`.
 
 The browser version is published at <https://stn.github.io/SyndromeOut/>; every push to `main`
-rebuilds and deploys it via `.github/workflows/pages.yml`.
+rebuilds and deploys it via `.github/workflows/pages.yml`. The URL takes the same arguments as
+the command line: <https://stn.github.io/SyndromeOut/50FCF8> replays that board, and
+`?d=9&p=0.15&seed=42` stands in for `-d 9 -p 0.15 --seed 42`.
 
 ## "All dark, yet wrong"
 
 The whole point of the game is that clearing the board is not the same as succeeding.
-A reproducible example: `uv run syndrome-out 50FCF8`. The minimum-weight correction (what the
+A reproducible example: `uv run syndrome-out 50FCF8` (or
+<https://stn.github.io/SyndromeOut/50FCF8> in the browser). The minimum-weight correction (what the
 bot plays; weight 5, or 6 with PyMatching's tie-break) turns every tile off and still
 produces a logical Z error, because E*C is a logical operator. It is also the most likely
 class, so the verdict reads FAIL Z error (but ML). Playing the true error itself gives

@@ -6,6 +6,10 @@ Usage: uv run scripts/build_web.py [-o dist/web]
 load any extra packages. Pyxel Web still honours a `packages` launch parameter (a list of
 packages built into Pyodide), so the page is patched to request numpy, the only dependency
 besides pyxel itself.
+
+The page is written twice, as index.html and 404.html: GitHub Pages serves 404.html for any
+unknown path, which is what lets `/SyndromeOut/50FCF8` boot the game with that seed (main.py
+reads the URL). Nothing in the page is fetched relative to its own URL, so this is safe.
 """
 
 from __future__ import annotations
@@ -39,8 +43,10 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     out = args.out / "index.html"
     out.write_text(html, encoding="utf-8")
+    (args.out / "404.html").write_text(html, encoding="utf-8")
     print(
-        f"wrote {out} ({out.stat().st_size / 1024:.0f} KB); serve with: python -m http.server -d {args.out}"
+        f"wrote {out} and 404.html ({out.stat().st_size / 1024:.0f} KB each); "
+        f"serve with: python -m http.server -d {args.out}"
     )
 
 
