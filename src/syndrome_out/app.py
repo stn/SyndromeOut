@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import random
+from typing import NamedTuple
 
 import numpy as np
 import pyxel
@@ -75,14 +76,24 @@ HELP_LINES = [
 ]
 
 
-# Operators shown on the buttons after judging: (key, ring colour, banner).
+# Operators shown side by side after judging: (key, ring colour, banner). Banners must fit a
+# half-width cell (about 27 characters including the weight suffix).
 VIEWS = (
-    ("C", YELLOW, "YOUR CORRECTION C"),
-    ("B", BLUE, "BOT CORRECTION (MWPM matching)"),
-    ("E", GREEN, "TRUE ERROR E (hidden until now)"),
-    ("R", RED, "RESIDUAL R = E*C  (what is left)"),
+    ("C", YELLOW, "C  your correction"),
+    ("B", BLUE, "B  bot (MWPM)"),
+    ("E", GREEN, "E  true error"),
+    ("R", RED, "R  residual E*C"),
 )
 RESIDUAL_VIEW = 3
+
+
+class Layout(NamedTuple):
+    """Where a board is drawn: origin, cell pitch and button radius."""
+
+    ox: int
+    oy: int
+    cs: int
+    rq: int
 
 
 def tile_is_red(face: Face) -> bool:
@@ -96,7 +107,6 @@ class App:
         self.p_index = ERROR_RATES.index(p)
         self.board = Board.new(d, p, seed)
         self.cursor = (d // 2, d // 2)
-        self.view = 0  # index into VIEWS, meaningful once judged
         self.show_help = False
         self.hover: int | None = None
         self.pressed: int | None = None  # qubit whose button is drawn "sunk" this frame
@@ -112,24 +122,37 @@ class App:
 
     def _layout(self) -> None:
         d = self.board.d
-        self.cs = min(MAX_CELL, (BOARD_W - 8) // (d + 1))
-        size = (d + 1) * self.cs
-        self.ox = (BOARD_W - size) // 2
-        self.oy = (HEIGHT - size) // 2
-        self.rq = max(3, self.cs // 4 - 1)
+        cs = min(MAX_CELL, (BOARD_W - 8) // (d + 1))
+        size = (d + 1) * cs
+        self.play = Layout((BOARD_W - size) // 2, (HEIGHT - size) // 2, cs, max(3, cs // 4 - 1))
 
-    def qubit_xy(self, q: int) -> tuple[int, int]:
+        # After judging, the board area splits into a 2x2 grid, one cell per VIEWS entry,
+        # each cell keeping a 9px banner strip above its board.
+        cell_w, cell_h, banner = BOARD_W // 2, HEIGHT // 2, 10
+        cs = min(MAX_CELL, (cell_w - 8) // (d + 1), (cell_h - banner - 4) // (d + 1))
+        size = (d + 1) * cs
+        self.quad = [
+            Layout(
+                (i % 2) * cell_w + (cell_w - size) // 2,
+                (i // 2) * cell_h + banner + (cell_h - banner - size) // 2,
+                cs,
+                max(3, cs // 4 - 1),
+            )
+            for i in range(len(VIEWS))
+        ]
+
+    def qubit_xy(self, q: int, lay: Layout) -> tuple[int, int]:
         r, c = self.board.code.qubit_pos(q)
-        return self.ox + (c + 1) * self.cs, self.oy + (r + 1) * self.cs
+        return lay.ox + (c + 1) * lay.cs, lay.oy + (r + 1) * lay.cs
 
-    def face_xy(self, f: Face) -> tuple[int, int]:
+    def face_xy(self, f: Face, lay: Layout) -> tuple[int, int]:
         fr, fc = f.center
-        return int(self.ox + (fc + 1) * self.cs), int(self.oy + (fr + 1) * self.cs)
+        return int(lay.ox + (fc + 1) * lay.cs), int(lay.oy + (fr + 1) * lay.cs)
 
-    def face_rect(self, f: Face) -> tuple[int, int, int, int]:
+    def face_rect(self, f: Face, lay: Layout) -> tuple[int, int, int, int]:
         """(x, y, w, h) of the tile; boundary faces are half tiles hugging the edge."""
-        cx, cy = self.face_xy(f)
-        hs = self.cs // 2 - 2
+        cx, cy = self.face_xy(f, lay)
+        hs = lay.cs // 2 - 2
         match f.side:
             case None:
                 return cx - hs, cy - hs, 2 * hs + 1, 2 * hs + 1
@@ -144,9 +167,9 @@ class App:
         raise AssertionError(f.side)
 
     def qubit_at(self, mx: int, my: int) -> int | None:
-        hit = self.rq + 3
+        hit = self.play.rq + 3
         for q in range(self.board.code.n):
-            x, y = self.qubit_xy(q)
+            x, y = self.qubit_xy(q, self.play)
             if abs(mx - x) <= hit and abs(my - y) <= hit:
                 return q
         return None
@@ -213,11 +236,8 @@ class App:
             self.judge()
         if pyxel.btnp(pyxel.KEY_R):
             self.board.reset()
-            self.view = 0
         if pyxel.btnp(pyxel.KEY_N):
             self.new_board(seed=random.randrange(1_000_000))
-        if pyxel.btnp(pyxel.KEY_A) and self.board.judged:
-            self.view = (self.view + 1) % len(VIEWS)
         if pyxel.btnp(pyxel.KEY_D):
             self.d_index = (self.d_index + 1) % len(DISTANCES)
             self.new_board(seed=random.randrange(1_000_000))
@@ -229,7 +249,6 @@ class App:
         d, p = DISTANCES[self.d_index], ERROR_RATES[self.p_index]
         self.board = Board.new(d, p, seed)
         self.cursor = (min(self.cursor[0], d - 1), min(self.cursor[1], d - 1))
-        self.view = 0
         self._layout()
 
     def toggle(self, q: int, kind: Toggle) -> None:
@@ -256,23 +275,20 @@ class App:
             pyxel.play(0, 3)
             return
         pyxel.play(0, 1 if verdict.success else 2)
-        self.view = 0 if verdict.success else RESIDUAL_VIEW
 
     def harmless_residual_faces(self) -> set[int]:
         """Faces whose product is R, when R is a stabilizer (i.e. the player succeeded)."""
         v = self.board.verdict
-        if v is None or not v.success or self.view != RESIDUAL_VIEW:
+        if v is None or not v.success:
             return set()
         faces = self.board.code.stabilizer_faces(self.board.residual)
         return set() if faces is None else set(int(f) for f in faces)
 
-    def shown_pauli(self):
-        """Operator drawn on the buttons: the correction while playing, the chosen view after."""
-        if not self.board.judged:
-            return self.board.correction
+    def pauli_for(self, view: int):
+        """Operator drawn on the buttons of one board."""
         b = self.board
         return {"C": b.correction, "E": b.error, "R": b.residual, "B": b.bot_correction}[
-            VIEWS[self.view][0]
+            VIEWS[view][0]
         ]
 
     # -- draw -------------------------------------------------------------------------------
@@ -282,26 +298,35 @@ class App:
         if self.show_help:
             self.draw_help()
             return
-        self.draw_board()
+        if self.board.judged:
+            for view, lay in enumerate(self.quad):
+                self.draw_board(lay, view)
+        else:
+            self.draw_board(self.play, 0)
         self.draw_panel()
 
-    def draw_board(self) -> None:
+    def draw_board(self, lay: Layout, view: int) -> None:
+        """One board showing VIEWS[view]; before judging, view 0 (C) is the live game."""
         board = self.board
         code = board.code
+        judged = board.judged
+        residual_view = judged and view == RESIDUAL_VIEW
         lit = board.lit[-1]
-        if board.judged and self.view != RESIDUAL_VIEW:
+        if judged and not residual_view:
             # C, E and the bot's correction all share the original syndrome: re-light it so the
             # marks visibly sit between the defects. R is syndrome-free, so it stays dark.
             lit = code.syndrome(board.error)[-1]
-        size = (board.d + 1) * self.cs
-        pyxel.rect(self.ox - 2, self.oy - 2, size + 4, size + 4, BOARD_BG)
+        size = (board.d + 1) * lay.cs
+        pyxel.rect(lay.ox - 2, lay.oy - 2, size + 4, size + 4, BOARD_BG)
 
-        hover_faces = set(code.faces_of_qubit[self.hover]) if self.hover is not None else set()
-        stab_faces = self.harmless_residual_faces()
+        hover_faces: set[int] = set()
+        if not judged and self.hover is not None:
+            hover_faces = set(code.faces_of_qubit[self.hover])
+        stab_faces = self.harmless_residual_faces() if residual_view else set()
         pulse = (pyxel.frame_count // 10) % 2 == 0
 
         for fi, face in enumerate(code.faces):
-            x, y, w, h = self.face_rect(face)
+            x, y, w, h = self.face_rect(face, lay)
             red = tile_is_red(face)
             if fi in stab_faces:
                 # R is a product of these faces: show them as faces, not as an error chain.
@@ -324,25 +349,26 @@ class App:
             if fi in hover_faces:
                 pyxel.rectb(x - 1, y - 1, w + 2, h + 2, TEXT)
 
-        if board.judged:
-            self.draw_logical_paths()
+        if residual_view:
+            self.draw_logical_paths(lay)
 
-        cursor_q = code.qubit_index(*self.cursor)
+        cursor_q = None if judged else code.qubit_index(*self.cursor)
+        pauli = self.pauli_for(view)
+        ring = VIEWS[view][1] if judged else None
         for q in range(code.n):
-            self.draw_qubit(q, q == cursor_q)
+            self.draw_qubit(q, lay, pauli.kind(q), ring, q == cursor_q)
 
-        if board.judged:
-            self.draw_view_banner()
+        if judged:
+            self.draw_view_banner(lay, view, pauli.weight, len(stab_faces))
 
-    def draw_qubit(self, q: int, is_cursor: bool) -> None:
-        x, y = self.qubit_xy(q)
-        r = self.rq
+    def draw_qubit(self, q: int, lay: Layout, k: str, ring: int | None, is_cursor: bool) -> None:
+        x, y = self.qubit_xy(q, lay)
+        r = lay.rq
         sunk = q == self.pressed
-        col = BUTTON_HI if (q == self.hover and not sunk) else BUTTON
+        col = BUTTON_HI if (q == self.hover and ring is None and not sunk) else BUTTON
         pyxel.circ(x, y, r - 1 if sunk else r, col)
         if not sunk:
             pyxel.circb(x, y, r, BUTTON_HI)
-        k = self.shown_pauli().kind(q)
         m = max(1, r - 2)
         # Each mark is a thick stroke along the diagonal joining the two faces it flips: the
         # checkerboard puts the Z-type (red) faces of qubit (r, c) on the TL-BR diagonal when
@@ -356,17 +382,17 @@ class App:
         if k in ("Z", "Y"):
             for dx in (-1, 0, 1):
                 pyxel.line(x + m * red_sign + dx, y - m, x - m * red_sign + dx, y + m, BLUE)
-        if k != "I" and self.board.judged:
-            pyxel.circb(x, y, r + 1, VIEWS[self.view][1])
+        if k != "I" and ring is not None:
+            pyxel.circb(x, y, r + 1, ring)
         if is_cursor:
             pyxel.circb(x, y, r + 3, TEXT)
 
-    def draw_logical_paths(self) -> None:
+    def draw_logical_paths(self, lay: Layout) -> None:
         """Dashed line along each logical operator the residual anticommutes with."""
         for logical in self.board.crossing_logicals():
             support = np.flatnonzero(logical.x | logical.z)
-            x0, y0 = self.qubit_xy(int(support[0]))
-            x1, y1 = self.qubit_xy(int(support[-1]))
+            x0, y0 = self.qubit_xy(int(support[0]), lay)
+            x1, y1 = self.qubit_xy(int(support[-1]), lay)
             horizontal = y0 == y1
             length = (x1 - x0) if horizontal else (y1 - y0)
             for t in range(0, length + 1, 6):
@@ -375,17 +401,15 @@ class App:
                 else:
                     pyxel.rect(x0 - 1, y0 + t, 3, 3, TEXT)
 
-    def draw_view_banner(self) -> None:
-        _, col, banner = VIEWS[self.view]
-        shown = self.shown_pauli()
-        text = f"{banner}  |{VIEWS[self.view][0]}|={shown.weight}"
-        faces = self.harmless_residual_faces()
-        if faces:
-            n = len(faces)
-            text = f"R = E*C = product of {n} stabilizer face{'s' if n != 1 else ''}: harmless"
+    def draw_view_banner(self, lay: Layout, view: int, weight: int, n_stab_faces: int) -> None:
+        """One-line caption in the strip above a board of the 2x2 grid."""
+        key, col, banner = VIEWS[view]
+        text = f"{banner} |{key}|={weight}"
+        if n_stab_faces:
+            text = f"R = {n_stab_faces} face{'s' if n_stab_faces != 1 else ''}: harmless"
             col = GREEN
-        pyxel.rect(0, 0, BOARD_W, 9, BOARD_BG)
-        pyxel.text(4, 2, text, col)
+        size = (self.board.d + 1) * lay.cs
+        pyxel.text(lay.ox + (size - len(text) * 4) // 2, lay.oy - 10, text, col)
 
     def draw_panel(self) -> None:
         board = self.board
@@ -441,9 +465,6 @@ class App:
             put(f"score {v.score}", YELLOW)
             if v.beat_bot:
                 put("YOU BEAT THE BOT!", YELLOW)
-            key, col, _ = VIEWS[self.view]
-            name = {"C": "your C", "E": "error E", "R": "residual R", "B": "bot C"}[key]
-            put(f"[A] view: {name}", col)
         elif board.all_clear:
             put("all dark. judge?", GREEN)
         else:
