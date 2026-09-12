@@ -42,4 +42,4 @@ correction (what the MWPM bot plays, weight 4) turns every tile off and still pr
 logical X error, because the hidden error has weight 3 and E*C is a logical operator.
 `tests/test_game.py::test_demo_seed_minimum_weight_fails` pins this down.
 
-Licensed under MIT OR Apache-2.0.
+Licensed under the MIT License. See [LICENSE](LICENSE).

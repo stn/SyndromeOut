@@ -3,7 +3,7 @@ name = "syndrome-out"
 version = "0.1.0"
 description = "Lights Out for the rotated surface code: clear the syndrome without causing a logical error"
 readme = "README.md"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 requires-python = ">=3.12"
 authors = [{ name = "Akira Ishino", email = "akira@lumilab.jp" }]
 dependencies = [
