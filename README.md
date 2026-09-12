@@ -88,6 +88,6 @@ class, so the verdict reads FAIL Z error (but ML). Playing the true error itself
 SUCCESS (but not ML: Z): its Z part lies in the class whose total probability is about
 3.5 times smaller. Some boards are simply lost.
 
-![Seed 50FCF8 after judging: all dark, FAIL Z error (but ML)](images/50FCF8.png)
+![Seed 50FCF8 after judging: all dark, FAIL Z error (but ML)](images/50FCF8-but-ml.png)
 
 Licensed under the MIT License. See [LICENSE](LICENSE).
