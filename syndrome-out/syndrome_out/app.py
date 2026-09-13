@@ -288,18 +288,21 @@ class App:
         if self.board.redo():
             pyxel.play(0, 0)
 
-    def judge_button_label(self) -> str:
-        """JUDGE before the verdict; afterwards NEW on a clean success, RETRY otherwise."""
+    def verdict_is_final(self) -> bool:
+        """A clean success, or a fail that ML would also have made: nothing left to improve."""
         v = self.board.verdict
-        if v is None:
+        return v is not None and ((v.success and not v.not_optimal) or v.failed_as_ml)
+
+    def judge_button_label(self) -> str:
+        """JUDGE before the verdict; afterwards NEW when the verdict is final, RETRY otherwise."""
+        if self.board.verdict is None:
             return "JUDGE (Enter)"
-        return "NEW (n)" if v.success and not v.not_optimal else "RETRY (r)"
+        return "NEW (n)" if self.verdict_is_final() else "RETRY (r)"
 
     def press_judge_button(self) -> None:
-        v = self.board.verdict
-        if v is None:
+        if self.board.verdict is None:
             self.judge()
-        elif v.success and not v.not_optimal:
+        elif self.verdict_is_final():
             self.new_board(seed=random.getrandbits(RAW_BITS))
         else:
             self.board.reset()

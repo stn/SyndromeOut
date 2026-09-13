@@ -103,7 +103,7 @@ FAIL Z error (but ML).
 Playing the true error itself (weight 5) gives SUCCESS (but not ML: Z): it lies in
 the class whose total probability is about 95 times smaller. On this board the best guess and the actual error disagree.
 
-![Seed 50009C after judging: all dark, FAIL Z error (but ML)](images/50009C-but-ml.png)
+![Seed 50009C after judging: all dark, FAIL Z error (but ML)](images/50009C-fail-but-ml.png)
 
 The opposite case is [551A6A](https://stn.github.io/SyndromeOut/551A6A): the true error is Z, Y, Y (weight 3), the bot plays a weight-4
 correction and fails, and the true class is the most likely one, so playing the true error is
