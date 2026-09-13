@@ -267,6 +267,9 @@ class App:
         self.board = Board.new(d, p, seed)
         show_code_in_url(pack_seed(d, p, seed))
         self.cursor = (min(self.cursor[0], d - 1), min(self.cursor[1], d - 1))
+        # hover was computed against the old board at the top of this frame; drop it so
+        # draw() never indexes the new code with a stale qubit number.
+        self.hover = None
         self._layout()
 
     def toggle(self, q: int, kind: Toggle) -> None:
