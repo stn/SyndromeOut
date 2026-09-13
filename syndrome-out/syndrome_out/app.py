@@ -310,14 +310,6 @@ class App:
             return
         pyxel.play(0, 1 if verdict.success else 2)
 
-    def harmless_residual_faces(self) -> set[int]:
-        """Faces whose product is R, when R is a stabilizer (i.e. the player succeeded)."""
-        v = self.board.verdict
-        if v is None or not v.success:
-            return set()
-        faces = self.board.code.stabilizer_faces(self.board.residual)
-        return set() if faces is None else set(int(f) for f in faces)
-
     def pauli_for(self, view: int):
         """Operator drawn on the buttons of one board."""
         b = self.board
@@ -356,15 +348,17 @@ class App:
         hover_faces: set[int] = set()
         if not judged and self.hover is not None:
             hover_faces = set(code.faces_of_qubit[self.hover])
-        stab_faces = self.harmless_residual_faces() if residual_view else set()
+        stab_faces = set(int(f) for f in board.residual_faces) if residual_view else set()
+        frame = GREEN if board.verdict is not None and board.verdict.success else RED
         pulse = (pyxel.frame_count // 10) % 2 == 0
 
         for fi, face in enumerate(code.faces):
             x, y, w, h = self.face_rect(face, lay)
             red = tile_is_red(face)
             if fi in stab_faces:
-                # R is a product of these faces: show them as faces, not as an error chain.
-                pyxel.rect(x - 1, y - 1, w + 2, h + 2, GREEN)
+                # R (minus its crossing strings, if any) is a product of these faces: show them
+                # as faces, not as an error chain.
+                pyxel.rect(x - 1, y - 1, w + 2, h + 2, frame)
                 pyxel.rect(x, y, w, h, TILE_OFF)
             elif lit[fi] and board.judged:
                 # Calm, dimmed defects so the correction paths drawn over them stand out.
@@ -384,7 +378,7 @@ class App:
                 pyxel.rectb(x - 1, y - 1, w + 2, h + 2, TEXT)
 
         if residual_view:
-            self.draw_logical_paths(lay)
+            self.draw_residual_paths(lay)
 
         cursor_q = None if judged else code.qubit_index(*self.cursor)
         pauli = self.pauli_for(view)
@@ -393,7 +387,7 @@ class App:
             self.draw_qubit(q, lay, pauli.kind(q), ring, q == cursor_q)
 
         if judged:
-            self.draw_view_banner(lay, view, pauli.weight, len(stab_faces))
+            self.draw_view_banner(lay, view, pauli.weight)
 
     def draw_qubit(self, q: int, lay: Layout, k: str, ring: int | None, is_cursor: bool) -> None:
         x, y = self.qubit_xy(q, lay)
@@ -421,27 +415,36 @@ class App:
         if is_cursor:
             pyxel.circb(x, y, r + 3, TEXT)
 
-    def draw_logical_paths(self, lay: Layout) -> None:
-        """Dashed line along each logical operator the residual anticommutes with."""
-        for logical in self.board.crossing_logicals():
-            support = np.flatnonzero(logical.x | logical.z)
+    def draw_residual_paths(self, lay: Layout) -> None:
+        """Dashed line along each logical string that R contains (a row or a column)."""
+        for path in self.board.residual_paths:
+            support = np.flatnonzero(path.x | path.z)
             x0, y0 = self.qubit_xy(int(support[0]), lay)
             x1, y1 = self.qubit_xy(int(support[-1]), lay)
             horizontal = y0 == y1
             length = (x1 - x0) if horizontal else (y1 - y0)
             for t in range(0, length + 1, 6):
                 if horizontal:
-                    pyxel.rect(x0 + t, y0 - 1, 3, 3, TEXT)
+                    pyxel.rect(x0 + t, y0 - 1, 3, 3, RED)
                 else:
-                    pyxel.rect(x0 - 1, y0 + t, 3, 3, TEXT)
+                    pyxel.rect(x0 - 1, y0 + t, 3, 3, RED)
 
-    def draw_view_banner(self, lay: Layout, view: int, weight: int, n_stab_faces: int) -> None:
+    def draw_view_banner(self, lay: Layout, view: int, weight: int) -> None:
         """One-line caption in the strip above a board of the 2x2 grid."""
         key, col, banner = VIEWS[view]
         text = f"{banner} |{key}|={weight}"
-        if n_stab_faces:
-            text = f"R = {n_stab_faces} face{'s' if n_stab_faces != 1 else ''}: harmless"
-            col = GREEN
+        board = self.board
+        if view == RESIDUAL_VIEW and board.verdict is not None and not board.residual.is_identity():
+            n = len(board.residual_faces)
+            faces = f"{n} face{'s' if n != 1 else ''}"
+            if board.verdict.success:
+                text = f"R = {faces}: harmless"
+                col = GREEN
+            else:
+                kinds = ",".join("X" if p.x.any() else "Z" for p in board.residual_paths)
+                paths = f"{kinds} path{'s' if len(board.residual_paths) > 1 else ''}"
+                text = f"R = {paths} + {faces}" if n else f"R = {paths}"
+                col = RED
         size = (self.board.d + 1) * lay.cs
         pyxel.text(lay.ox + (size - len(text) * 4) // 2, lay.oy - 10, text, col)
 

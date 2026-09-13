@@ -1,5 +1,6 @@
 """Board state machine: toggles, undo/redo, judgement gating and classes."""
 
+import numpy as np
 import pytest
 
 from syndrome_out import LogicalEffect, Pauli
@@ -79,7 +80,49 @@ def test_clearing_with_a_logical_error_fails() -> None:
     assert v.effect is LogicalEffect.X
     assert not v.success and not v.failed_as_ml  # a clean board's likeliest class is I
     assert v.bot_success
-    assert b.crossing_logicals() == [b.code.logical_z]
+    # R is exactly the column-0 X string: one path, no faces.
+    assert b.residual_paths == [b.code.logical_x]
+    assert len(b.residual_faces) == 0
+
+
+def _product_of_faces(b: Board, faces) -> Pauli:
+    out = Pauli.identity(b.code.n)
+    for fi in faces:
+        out = out * b.code.stabilizer(int(fi))
+    return out
+
+
+def test_residual_decomposition_on_failure() -> None:
+    """50009C: the bot's residual carries a logical Z, so R is one Z row string times faces,
+    with the row chosen to need the fewest faces."""
+    b = Board.new(5, 0.10, seed=156)
+    v = _play(b, b.bot_correction)
+    assert v.effect is LogicalEffect.Z
+    (path,) = b.residual_paths
+    assert not path.x.any() and path.z.sum() == 5
+    rows = {b.code.qubit_pos(int(q))[0] for q in np.flatnonzero(path.z)}
+    assert len(rows) == 1
+    assert path * _product_of_faces(b, b.residual_faces) == b.residual
+    # No other row does better.
+    for k in range(5):
+        alt = Pauli.from_support(b.code.n, zs=[b.code.qubit_index(k, c) for c in range(5)])
+        faces = b.code.stabilizer_faces(b.residual * alt)
+        assert faces is not None and len(faces) >= len(b.residual_faces)
+
+
+def test_residual_decomposition_on_success() -> None:
+    b = Board.new(5, 0.10, seed=156)
+    v = _play(b, b.error)
+    assert v.success
+    assert b.residual_paths == [] and len(b.residual_faces) == 0  # R is the identity
+    b = Board.new(3, 0.0, seed=0)
+    face = b.code.faces[0]
+    for q in face.qubits:
+        b.toggle(q, face.kind)
+    b.judge()
+    assert b.residual_paths == [] and list(b.residual_faces) == [0]
+    b.reset()
+    assert b.residual_paths == [] and len(b.residual_faces) == 0
 
 
 def test_reset_keeps_seed_and_error() -> None:
@@ -92,34 +135,60 @@ def test_reset_keeps_seed_and_error() -> None:
     assert not b.judged
 
 
-def test_demo_seed_minimum_weight_fails() -> None:
-    """The seed documented in README: both bots clear the board but flip the logical qubit."""
-    assert unpack_seed(0x50FCF8) == (5, 0.10, 64760)
-    b = Board.new(5, 0.10, seed=64760)
+def _play(b: Board, pauli: Pauli):
     for q in range(b.code.n):
-        k = b.bot_correction.kind(q)
+        k = pauli.kind(q)
         if k != "I":
             b.toggle(q, k)
     v = b.judge()
     assert v is not None and b.all_clear
+    return v
+
+
+def test_demo_seed_minimum_weight_fails() -> None:
+    """The seed documented in README: both bots clear the board but flip the logical qubit."""
+    assert unpack_seed(0x50009C) == (5, 0.10, 156)
+    b = Board.new(5, 0.10, seed=156)
+    v = _play(b, b.bot_correction)
     assert v.effect is LogicalEffect.Z
     assert v.ml_effect is LogicalEffect.Z
     assert v.failed_as_ml and not v.not_ml  # shown as FAIL Z error (but ML)
-    # X and Z parts are each minimal either way; PyMatching's tie-break happens not to overlap them.
-    assert v.weight == (6 if decode_mwpm else 5) and b.error.weight == 5
+    assert v.weight == 4 and b.error.weight == 5
 
 
 def test_demo_seed_true_error_is_not_ml() -> None:
     """Playing the hidden error itself succeeds, but the likelier class was the other one."""
-    b = Board.new(5, 0.10, seed=64760)
-    for q in range(b.code.n):
-        k = b.error.kind(q)
-        if k != "I":
-            b.toggle(q, k)
-    v = b.judge()
-    assert v is not None and v.success
+    b = Board.new(5, 0.10, seed=156)
+    v = _play(b, b.error)
+    assert v.success
     assert v.not_ml and not v.not_optimal
     assert v.ml_effect is LogicalEffect.Z  # shown as SUCCESS (but not ML: Z)
+
+
+def test_ml_tag_counts_a_y_once() -> None:
+    """Board 551A6A: the true error is Z, Y, Y (weight 3). Independent X/Z decoding would call
+    the class a logical Z away likelier; under depolarizing noise the true class is ML."""
+    assert unpack_seed(0x551A6A) == (5, 0.10, 334442)
+    b = Board.new(5, 0.10, seed=334442)
+    assert str(b.error).count("Y") == 2 and b.error.weight == 3
+    v = _play(b, b.error)
+    assert v.success and not v.not_ml and not v.not_optimal  # plain SUCCESS
+    assert v.bot_effect is LogicalEffect.Z and v.bot_weight == 4
+    b = Board.new(5, 0.10, seed=334442)
+    v = _play(b, b.bot_correction)
+    assert v.effect is LogicalEffect.Z and not v.failed_as_ml  # FAIL Z error, no (but ML)
+
+
+def test_old_demo_seed_true_class_is_ml() -> None:
+    """50FCF8 (the former README example): the min-weight correction still fails, but the true
+    class is the likelier one, so neither verdict carries an ML tag."""
+    b = Board.new(5, 0.10, seed=64760)
+    v = _play(b, b.bot_correction)
+    assert v.effect is LogicalEffect.Z and not v.failed_as_ml
+    assert v.weight == (6 if decode_mwpm else 5) and b.error.weight == 5
+    b = Board.new(5, 0.10, seed=64760)
+    v = _play(b, b.error)
+    assert v.success and not v.not_ml
 
 
 def test_seed_code_round_trip() -> None:

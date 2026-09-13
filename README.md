@@ -36,28 +36,41 @@ a Z error: clear it with Z (blue mark). The panel legend shows how many of each 
 
 After judging, the board area splits into a 2x2 grid showing your correction C (yellow),
 the bot's correction B (blue), the true error E (green) and the residual R = E*C (red)
-side by side. Qubit marks are drawn along the faces they flip.
+side by side. Qubit marks are drawn along the faces they flip. The R board also shows why
+the verdict is what it is: on a success it outlines, in green, the faces whose product is R
+(a harmless stabilizer); on a failure it draws R, in red, as a string running from one
+boundary of the code to the other plus a set of faces.
 
 The verdict also says how your guess compared with the most likely class, i.e. the class
 with the largest total probability summed over every error consistent with the syndrome
-(degeneracy-aware). SUCCESS (but not ML: Z) means you were right, but the class a logical Z
-away (likewise X or Y) was likelier, so the same reasoning would fail on most boards that
-look like this. FAIL Z error (but ML) means you picked the most likely class and it was
-wrong: the board was a losing one, not your reasoning. A NOT OPTIMAL tag under a success
+(degeneracy-aware), which the verdict abbreviates to ML. SUCCESS (but not ML: Z) means you
+were right, but the class a logical Z away (likewise X or Y) was likelier, so the same
+reasoning would fail on most boards that look like this. FAIL Z error (but ML) means you
+picked the most likely class and it was wrong: the board was a losing one, not your
+reasoning. A NOT OPTIMAL tag under a success
 means a lighter successful correction is known. The bot's line shows how the minimum-weight
 correction B fared on the same board.
 
 ## Decoder
 
-The bot and the ML verdict come from one pure-Python frontier sweep (`syndrome_out/decoder.py`).
-Data qubits are visited in row-major order; the DP state is the parity of
-every stabilizer face that has been opened but not yet closed, plus one bit for the logical
-class, and a face is checked against the syndrome when its last qubit is passed. At d=9 the
-frontier holds at most 7 faces, so a sweep touches a few hundred states and takes about 3 ms.
-One pass yields, per logical class, the minimum weight with a witness and the sum of r^|E|
-over all consistent errors (r = q/(1-q), q = 2p/3). For the surface code the minimum-weight
-witness is what minimum-weight perfect matching finds, so PyMatching is not needed; X and Z
-errors are decoded independently, as MWPM does.
+The bot's correction and the most-likely-class verdict come from pure-Python frontier sweeps
+(`syndrome_out/decoder.py`).
+Data qubits are visited in row-major order; the DP state is the parity of every stabilizer
+face that has been opened but not yet closed, plus the logical class, and a face is checked
+against the syndrome when its last qubit is passed.
+
+The bot's correction comes from two sweeps that decode X and Z errors independently, as MWPM
+does. At d=9 the frontier holds at most 7 faces, so a sweep touches a few hundred states and
+takes about 3 ms.
+
+The most likely class comes from a third sweep that tries I, X, Z and Y on every qubit and tracks
+both face types at once. It sums r^|E| over every error consistent with the syndrome, per
+class, with r = (p/3)/(1-p) and |E| the support weight, i.e. the actual depolarizing
+posterior of the four classes: a Y costs one factor of p/3, not one X plus one Z. Decoding X
+and Z independently gets this wrong on a few percent of boards (about 6% at d=5, p=0.10, and
+14% at p=0.15); on those the joint sweep picks the right class about three times as often.
+The joint frontier is about twice as wide, so this sweep touches a few thousand states and
+takes about 0.3 s at d=9, once per board.
 
 `uv sync --extra mwpm` installs PyMatching as a reference. When it is importable the bot's
 correction comes from PyMatching instead and the panel says `bot (MWPM)`; the extra also
@@ -79,22 +92,24 @@ As a bonus, both dependencies exist in Pyodide, so the same code also runs in a 
 in the page's package list; Pyxel, Pyodide and numpy are fetched from CDNs at load time).
 Try it with `python -m http.server -d dist/web`.
 
-The browser version is published at <https://stn.github.io/SyndromeOut/>; every push to `main`
-rebuilds and deploys it via `.github/workflows/pages.yml`. The URL takes the same arguments as
-the command line: <https://stn.github.io/SyndromeOut/50FCF8> replays that board, and
-`?d=9&p=0.15&seed=42` stands in for `-d 9 -p 0.15 --seed 42`.
-
-## "All dark, yet wrong"
+## Zero syndrome, wrong class
 
 The whole point of the game is that clearing the board is not the same as succeeding.
-A reproducible example: `uv run syndrome-out 50FCF8` (or
-<https://stn.github.io/SyndromeOut/50FCF8> in the browser). The minimum-weight correction (what the
-bot plays; weight 5, or 6 with PyMatching's tie-break) turns every tile off and still
-produces a logical Z error, because E*C is a logical operator. It is also the most likely
-class, so the verdict reads FAIL Z error (but ML). Playing the true error itself gives
-SUCCESS (but not ML: Z): its Z part lies in the class whose total probability is about
-3.5 times smaller. Some boards are simply lost.
+A reproducible example: [50009C](https://stn.github.io/SyndromeOut/50009C).
+The minimum-weight correction (what the bot plays; weight 4) turns every tile off and still produces a logical Z error.
+The residual E*C lights nothing because it is a string of Z's running from one side of the code to the other,
+times a few faces, and such a string is a logical Z. It is also the most likely class, so the verdict reads
+FAIL Z error (but ML).
+Playing the true error itself (weight 5) gives SUCCESS (but not ML: Z): it lies in
+the class whose total probability is about 95 times smaller. On this board the best guess and the actual error disagree.
 
-![Seed 50FCF8 after judging: all dark, FAIL Z error (but ML)](images/50FCF8-but-ml.png)
+![Seed 50009C after judging: all dark, FAIL Z error (but ML)](images/50009C-but-ml.png)
+
+The opposite case is [551A6A](https://stn.github.io/SyndromeOut/551A6A): the true error is Z, Y, Y (weight 3), the bot plays a weight-4
+correction and fails, and the true class is the most likely one, so playing the true error is
+a plain SUCCESS. A decoder that treats the X and Z parts independently would count each Y
+twice and call the bot's class likelier.
+
+![Seed 551A6A after playing the bot's correction: all dark, FAIL Z error without the ML tag](images/551a6a-fail-z.png)
 
 Licensed under the MIT License. See [LICENSE](LICENSE).

@@ -98,8 +98,11 @@ class Board:
     bot_correction: Pauli = field(init=False)  # minimum weight (PyMatching if installed)
     ml_correction: Pauli = field(
         init=False
-    )  # lightest member of the most likely class (NOT ML tag)
+    )  # lightest member of the most likely class under depolarizing noise (ML tags)
     verdict: Verdict | None = field(init=False, default=None)
+    # After judging, R = E*C decomposed as (logical strings) * (product of faces); see judge().
+    residual_paths: list[Pauli] = field(init=False, default_factory=list)
+    residual_faces: np.ndarray = field(init=False, default_factory=lambda: np.zeros(0, dtype=int))
     _undo: list[Pauli] = field(init=False, default_factory=list)
     _redo: list[Pauli] = field(init=False, default_factory=list)
 
@@ -181,6 +184,8 @@ class Board:
         """Same seed, fresh correction (retry)."""
         self.correction = Pauli.identity(self.code.n)
         self.verdict = None
+        self.residual_paths = []
+        self.residual_faces = np.zeros(0, dtype=int)
         self._undo.clear()
         self._redo.clear()
 
@@ -198,15 +203,39 @@ class Board:
         weight = self.correction.weight
         bot_weight = self.bot_correction.weight
         self.verdict = Verdict(effect, weight, bot_weight, bot_effect, ml_effect, self.error.weight)
+        self.residual_paths, self.residual_faces = self._decompose_residual(effect)
         return self.verdict
 
-    def crossing_logicals(self) -> list[Pauli]:
-        """Logical operator strings the residual anticommutes with (for the failure overlay)."""
-        if self.verdict is None:
-            return []
-        out = []
-        if self.verdict.effect in (LogicalEffect.X, LogicalEffect.Y):
-            out.append(self.code.logical_z)  # residual acts as X-bar: it crosses Z-bar
-        if self.verdict.effect in (LogicalEffect.Z, LogicalEffect.Y):
-            out.append(self.code.logical_x)
-        return out
+    def _decompose_residual(self, effect: LogicalEffect) -> tuple[list[Pauli], np.ndarray]:
+        """Write the syndrome-free residual as logical strings times a product of faces.
+
+        A residual carrying a logical Z contains a Z string across some row (row k's string is
+        logical Z times the Z faces between rows 0 and k, so every row is a valid
+        representative); likewise a logical X is an X string down some column. The row and
+        column that leave the fewest faces are chosen so the overlay stays close to R itself.
+        On a success there is no string and the faces alone make up R.
+        """
+        code = self.code
+        d = code.d
+        identity = [Pauli.identity(code.n)]
+        z_strings = identity
+        x_strings = identity
+        if effect in (LogicalEffect.Z, LogicalEffect.Y):
+            z_strings = [
+                Pauli.from_support(code.n, zs=[code.qubit_index(k, c) for c in range(d)])
+                for k in range(d)
+            ]
+        if effect in (LogicalEffect.X, LogicalEffect.Y):
+            x_strings = [
+                Pauli.from_support(code.n, xs=[code.qubit_index(r, k) for r in range(d)])
+                for k in range(d)
+            ]
+        best: tuple[list[Pauli], np.ndarray] | None = None
+        for zs in z_strings:
+            for xs in x_strings:
+                faces = code.stabilizer_faces(self.residual * zs * xs)
+                assert faces is not None  # R times a representative of its class is a stabilizer
+                if best is None or len(faces) < len(best[1]):
+                    best = ([s for s in (xs, zs) if not s.is_identity()], faces)
+        assert best is not None
+        return best
