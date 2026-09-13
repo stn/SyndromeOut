@@ -81,8 +81,8 @@ HELP_LINES = [
     "DEGENERACY: you cannot see E, only",
     "its syndrome, so you must guess the",
     "most likely class (summed over every",
-    "error). 'but not ML: Z': the class a Z",
-    "away was likelier; 'but ML': yours was.",
+    "error).",
+    "",
     "press ? to close",
 ]
 
@@ -505,10 +505,10 @@ class App:
         line = HEIGHT - 7 * 8 - 4
         put("LMB/x: X  RMB/z: Z  y: Y", BUTTON_HI)
         put("arrows/hjkl: cursor", BUTTON_HI)
-        put("r: retry   n: new", BUTTON_HI)
-        put("u: undo  U: redo", BUTTON_HI)
+        put("r: retry  n: new", BUTTON_HI)
+        put("u: undo   U: redo", BUTTON_HI)
         put("d: size   p: noise", BUTTON_HI)
-        put("?: help  Esc: quit", BUTTON_HI)
+        put("?: help   Esc: quit", BUTTON_HI)
 
     def draw_help(self) -> None:
         y = 6
